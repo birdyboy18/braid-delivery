@@ -4,105 +4,42 @@ var Models = require('../models'),
 
 var braid = {
   list: function(req, res) {
-    Models.Braid.find({},'-__v',{}, function(err, braids){
-      if (err) { throw err;};
+    //check if they have used a query param, or a url param
+    if (req.params.braid_id) {
+      Models.Braid.findById(req.params.braid_id, req.exclude ).populate(req.populate).exec(function(err, braid){
+        console.log(braid)
+        if (err) { res.status(400).json({
+          'message': err
+        })};
 
-      res.json(braids)
-    });
-  },
-  create: function(req, res) {
-    //check if there is a username query parameter. if there is use that one to create a new braid not the authenticated user.
-    var userId;
-    if (req.query.userId) {
-      userId = req.query.userId;
-    } else {
-      userId = req.user.username;
+        if (!braid) {
+          res.status(404).json({
+            'message': 'We\'re sorry we can\'t find a braid with that id, please make sure you\'ve spelled it properly'
+          });
+        } else {
+          //we must of found it so, return it to the person requesting it
+          res.status(200).json(braid);
+        }
+
+      });
+    } else if (req.query.username) {
+      Models.Braid.find({ _userId: req.query.username }, req.exclude).populate(req.populate).exec(function(err, braids){
+        console.log(braids);
+        if (err) { res.status(400).json({
+          'message': err
+        })};
+
+        if (braids.length > 0) {
+          //there are more than none which means we found some
+          res.status(200).json(braids);
+        } else {
+          res.status(404).json({
+            'message': 'We\'re sorry we can\'t find a braids by that user'
+          });
+        }
+      })
     }
-
-      var newBraid = new Models.Braid({
-        _id: new mongoose.Types.ObjectId,
-        _userId: userId,
-        name: req.body.name,
-        description: req.body.description
-      });
-
-      newBraid.save(function(err, braid){
-        if (err) { throw err;};
-
-        Models.User.findOne({ username: braid._userId},'-__V -password', function(err, user){
-          if (err) { throw err;};
-
-          user.braids.push(braid._id);
-
-          user.save(function(err, user){
-            if (err) { throw err;};
-
-            res.json(201,{
-               'message': 'New braid succesfully created',
-               'user': user,
-               'braid': braid
-            });
-          })
-        })
-      });
-  },
-  update: function(req,res) {
-    Models.Braid.findOneAndUpdate({ _id: req.braidId }, req.body, function(err, braid){
-      if (err) { throw err;};
-
-      res.json({
-        'message': 'Braid Sucessfully updated',
-        'braid': braid
-      });
-    });
-  },
-  remove: function(req,res) {
-
-    Models.Braid.findOne({ _id: req.braidId }, function(err, braid){
-      if (err) { throw err;};
-
-      Models.User.findOne({ username: braid._userId },'-password', function(err, user){
-        if (err) { throw err;};
-
-        //pull the braid id from the braid array on the user
-        user.braids.pull(braid._id);
-
-        //save it, once it save remove the braid from the collection
-        user.save(function(err, user){
-          if (err) { throw err;};
-
-          //find the threads and the entries, belonging to the braid and remove all of them.
-          Models.Thread.findOne({ _braidId: braid._id }, function(err, thread){
-            if (err) { throw err;};
-
-            //find the entries with the threadID and remove them
-            Models.Entry.remove({ _threadId: thread._id }, function(err) {
-              if (err) { throw err;};
-
-              //now we can remove the thread
-              Models.Thread.remove({ _id: thread._id }, function(err) {
-                if (err) { throw err;};
-
-                AppEmitter.emitChange('threadChange');
-              });
-            });
-          })
-
-          //Finally remove the braid
-          Models.Braid.remove({ _id: braid._id}, function(err){
-            if (err) {throw err;};
-
-            res.status(200).json({
-              'message': 'Sucessfully deleted braid, reference has been removed from user and all threads and entries too',
-              'user': user
-            })
-          })
-        });
-
-      });
-
-    });
   }
-};
+}
 
 module.exports = braid;

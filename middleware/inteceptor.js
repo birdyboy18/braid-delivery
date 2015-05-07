@@ -4,7 +4,7 @@ if the request query parameters have an exclude parameter then it will be sure t
 
 If it has a populate param then everything than can be populated will be.
 */
-
+var _ = require('lodash');
 
 var Inteceptor = function() {
 	return function(req,res,next) {
@@ -21,10 +21,25 @@ var Inteceptor = function() {
 			req.exclude = returnString;
 		}
 		//if the populate field is there then populate the fields you want populating
-		if (req.query.populate != '') {
+		if (req.query.populate) {
 			req.populate = req.query.populate;
 		} else {
 			req.populate = '';
+		}
+		//count how many params there are
+		req.paramLength = _.size(req.query);
+
+		//we need to be able to intecept for params for limiting and skipping, that way we can easily paginate results
+		if (req.query.limit) {
+			req.limit = req.query.limit;
+		} else {
+			req.limit = '';
+		}
+
+		if (req.query.skip) {
+			req.skip = req.query.skip;
+		} else {
+			req.skip = '';
 		}
 		next();
 	}

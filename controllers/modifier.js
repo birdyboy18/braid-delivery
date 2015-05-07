@@ -3,102 +3,39 @@ var Models = require('../models'),
     mongoose = require('mongoose');
 
 var modifier = {
-  list: function(req, res) {
-    Models.Modifier.find({},{},{}, function(err, mods){
-      if (err) { throw err;};
+  listById: function(req, res) {
+    Models.Modifier.findById( req.params.mod_id, req.exclude).populate(req.populate).exec(function(err, mod){
+      if (err) { res.status(400).json({
+          'message': err
+        })};
 
-      if (mods.length > 0) {
-        res.json(mods)
-      } else {
-        res.status(404).json({
-          'message': 'Couldn\'t find any modifiers'
-        })
-      }
+      if (!mod) {
+          res.status(404).json({
+            'message': 'Sorry we can\'t find a modifier with that id'
+          });
+        } else {
+          res.status(200).json(mod);
+        }
     });
   },
-  create: function(req, res) {
-    //check if there is a username query parameter. if there is use that one to create a new braid not the authenticated user.
-    var userId;
-    if (req.query.userId) {
-      userId = req.query.userId;
-    } else {
-      userId = req.user.username;
+  listByParam: function(req, res) {
+    if (req.query.username) {
+      Models.Modifier.find({ _userId: req.query.username }, req.exclude).populate(req.populate).exec(function(err, mods){
+        if (err) { res.status(400).json({
+          'message': err
+        })};
+
+        if (mods.length > 0) {
+          //then we found some return then
+          res.status(200).json(mods);
+        } else {
+          res.status(404).json({
+            'message': 'We\'re sorry we can\'t find any modifiers by that username'
+          });
+        }
+      });
     }
-
-    var modifier_meta = Modifier.modifierDecider(req.body.type, req.body);
-
-    var newModifier = new Models.Modifier({
-      _id: new mongoose.Types.ObjectId,
-      _userId: userId,
-      type: req.body.type,
-      name: req.body.name,
-      description: req.body.description,
-      modifier_meta: modifier_meta
-    });
-
-    newModifier.save(function(err, mod){
-      if (err) { throw err;};
-
-      Models.User.findOne({ username: mod._userId }, function(err, user){
-        if (err) { throw err;};
-
-
-        user.modifiers.push(mod._id);
-
-        user.save(function(err, user){
-          res.status(201).json({
-            'message': 'Modifier succesfully created',
-            'user': user,
-            'modifier': mod
-          })
-        });
-      });
-    });
-  },
-  update: function(req, res) {
-    Models.Modifier.findOneAndUpdate({ _id: req.modId }, req.body, function(err, mod){
-      if (err) { throw err;};
-
-      res.json({
-        'message': 'Modifier Sucessfully updated',
-        'modifier': mod
-      });
-    });
-  },
-  remove: function(req, res) {
-    Models.Modifier.findOne({ _id: req.params.modifier_id }, function(err, mod){
-      if (err) { throw err; };
-
-      if (mod == null) {
-        res.status(404).json({
-          'message': 'can\'t find that modifier, please check the modifier id is correct or that it exists'
-        });
-      } else {
-
-        Models.User.findOne({ username: mod._userId}, function(err, user){
-            if (err) { throw err;};
-
-            //remove the modifier reference from the user
-            user.modifiers.pull(mod._id);
-
-            //save the user
-            user.save(function(err, user){
-              if (err) { throw err;};
-
-              Models.Modifier.remove({ _id: mod._id }, function(err){
-                if (err) { throw err;};
-
-                res.json({
-                  'message': 'Modifier ' + mod._id + ' has sucessfully been removed and reference has been removed from user',
-                  'user': user
-                })
-              });
-
-            });
-        });
-      } //end of else
-    });
   }
-};
+}
 
 module.exports = modifier;

@@ -8,8 +8,14 @@ var user = {
         'message': err
       })};
 
-      //we must of found it, just return the user and all their data.
-      res.status(200).json(user);
+      if (!user) {
+      	res.status(404).json({
+      		'message': 'Sorry we can\'t find a user with that username, please make sure it is spelt correctly'
+      	})
+      } else {
+      	//we must of found it, just return the user and all their data.
+      	res.status(200).json(user);
+      }
     });
   }
 }
