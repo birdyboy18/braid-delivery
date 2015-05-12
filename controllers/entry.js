@@ -36,6 +36,21 @@ var entry = {
           });
         }
       })
+    } else if (req.query.threadId) {
+      Models.Entry.find({ _threadId: req.query.threadId }, req.exclude).populate(req.populate).skip(req.skip).limit(req.limit).exec(function(err, entries){
+        if (err) { res.status(400).json({
+          'message': err
+        })};
+
+        if (entries.length > 0) {
+          //found em
+          res.status(200).json(entries);
+        } else {
+          res.status(404).json({
+            'message': 'We\'re sorry we can\'t find any entries by that threadId'
+          });
+        }
+      })
     } else {
       res.status(400).json({
         'message': 'You haven\'t provided any parameters to search by'
